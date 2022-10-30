@@ -100,7 +100,7 @@ class RobotModel(MujocoXML, metaclass=RobotModelMeta):
                 np.fromstring(self.worldbody.find(".//body[@name='{}']".format(self.eef_name))
                               .attrib.get("quat", "1 0 0 0"),
                               dtype=np.float64, sep=" ")[[1, 2, 3, 0]]
-        else:   # "bimanual" case
+        elif self.arm_type == "bimanual":
             self.hand_rotation_offset = {}
             for arm in ("right", "left"):
                 self.hand_rotation_offset[arm] = \

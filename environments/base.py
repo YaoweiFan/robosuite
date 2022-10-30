@@ -1,15 +1,12 @@
 from collections import OrderedDict
 from mujoco_py import MjSim, MjRenderContextOffscreen
 from mujoco_py import load_model_from_xml
-import numpy as np
 
 from robosuite.utils import SimulationError, XMLError, MujocoPyRenderer
 
-import matplotlib.pyplot as plt
 
 REGISTERED_ENVS = {}
 
-# import pandas as pd
 
 def register_env(target_class):
     REGISTERED_ENVS[target_class.__name__] = target_class
@@ -462,7 +459,7 @@ class MujocoEnv(metaclass=EnvMeta):
         Returns:
             generator: iterator of all contacts between @geoms_1 and @geoms_2
         """
-        for contact in self.sim.data.contact[0 : self.sim.data.ncon]:
+        for contact in self.sim.data.contact[0: self.sim.data.ncon]:
             # check contact geom in geoms
             c1_in_g1 = self.sim.model.geom_id2name(contact.geom1) in geoms_1
             c2_in_g2 = self.sim.model.geom_id2name(contact.geom2) in geoms_2

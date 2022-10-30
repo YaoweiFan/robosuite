@@ -21,7 +21,7 @@ class TableArena(Arena):
     def __init__(
         self,
         table_full_size=(0.8, 0.8, 0.05),
-        table_friction=(1, 0.005, 0.0001),
+        table_friction=(0.00001, 0, 0.0001),
         table_offset=(0, 0, 0.8),
         has_legs=True,
         xml="arenas/table_arena.xml",
@@ -30,7 +30,7 @@ class TableArena(Arena):
 
         self.table_full_size = np.array(table_full_size)
         self.table_half_size = self.table_full_size / 2
-        self.table_friction = table_friction
+        # self.table_friction = table_friction
         self.table_offset = table_offset
 
         self.floor = self.worldbody.find("./geom[@name='floor']")
@@ -56,8 +56,8 @@ class TableArena(Arena):
 
         self.center_pos = self.bottom_pos + np.array([0, 0, -self.table_half_size[2]]) + self.table_offset
         self.table_body.set("pos", array_to_string(self.center_pos))
-        self.table_collision.set("size", array_to_string(self.table_half_size))
-        self.table_collision.set("friction", array_to_string(self.table_friction))
+        self.table_collision.set("pos", array_to_string(np.array([0, 0, self.table_half_size[2]-0.001])))
+        # self.table_collision.set("friction", array_to_string(self.table_friction))
         self.table_visual.set("size", array_to_string(self.table_half_size))
 
         self.table_top.set(

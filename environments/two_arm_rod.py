@@ -3,15 +3,17 @@ import numpy as np
 
 from robosuite.environments.robot_env import RobotEnv
 
-from robosuite.models.arenas import TableWithHoleArena
+from robosuite.models.arenas import TableArena
 from robosuite.models.objects import TwoAxisPegObject
 from robosuite.models.tasks import ManipulationTask, UniformRandomSampler
 from robosuite.models.robots import check_bimanual
 
 import robosuite.utils.transform_utils as transform
 
+from robosuite.robots.single_rod import SingleRod
 
-class TwoArmAssemble(RobotEnv):
+
+class TwoArmRod(RobotEnv):
     """
     This class corresponds to the assemble task for two robot arms.
 
@@ -264,22 +266,36 @@ class TwoArmAssemble(RobotEnv):
 
             # Reaching reward with Grasping
             if _contacts_0_lf and _contacts_0_rf:
-                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._left_peg_to_hole)))
+                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._left_rod_top_xpos)))
 
             # Reaching reward with Grasping
             if _contacts_1_lf and _contacts_1_rf:
-                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._right_peg_to_hole)))
+                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._right_rod_top_xpos)))
 
         if self.reward_scale is not None:
             reward *= self.reward_scale / 3.0
 
         return reward
 
+    def _load_rods(self):
+        self.rod_names = ["Rod", "Rod"]
+        self.rods = [None, None]
+        self.rod_configs = [{"initial_qpos": np.array([0])}, {"initial_qpos": np.array([0])}]
+
+        for idx, (name, config) in enumerate(zip(self.rod_names, self.rod_configs)):
+            self.rods[idx] = SingleRod(
+                robot_type=name,
+                idn="rod{}_".format(idx),
+                **config
+            )
+            self.rods[idx].load_model()
+
     def _load_model(self):
         """
         Loads an xml model, puts it in self.model
         """
         super()._load_model()
+        self._load_rods()
 
         # Adjust base pose(s) accordingly
         if self.env_configuration == "bimanual":
@@ -301,8 +317,14 @@ class TwoArmAssemble(RobotEnv):
                     xpos = np.array(xpos) + np.array((0, offset, 0))
                     robot.robot_model.set_base_xpos(xpos)
 
+        # Adjust base pose(s) of rods accordingly
+        for rod, offset in zip(self.rods, (-0.25, 0.25)):
+            xpos = rod.robot_model.base_xpos_offset["table"](self.table_full_size[0])
+            xpos = np.array(xpos) + np.array((0.6, offset, 0))
+            rod.robot_model.set_base_xpos(xpos)
+
         # load model for table top workspace
-        self.mujoco_arena = TableWithHoleArena(
+        self.mujoco_arena = TableArena(
             table_full_size=self.table_full_size,
             table_friction=self.table_friction,
             table_offset=(0, 0, 1.0),
@@ -320,7 +342,7 @@ class TwoArmAssemble(RobotEnv):
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
             mujoco_arena=self.mujoco_arena, 
-            mujoco_robots=[robot.robot_model for robot in self.robots], 
+            mujoco_robots=[robot.robot_model for robot in self.robots] + [rod.robot_model for rod in self.rods],
             mujoco_objects=self.mujoco_objects, 
             visual_objects=None, 
             initializer=self.placement_initializer,
@@ -335,22 +357,20 @@ class TwoArmAssemble(RobotEnv):
         """
         super()._get_reference()
 
+        for rod in self.rods:
+            rod.reset_sim(self.sim)
+            rod.setup_references()
+
         # Additional object references from this env
         self.peg_body_id = self.sim.model.body_name2id("peg")
         self.left_peg_site_id = self.sim.model.site_name2id("leftp")
         self.right_peg_site_id = self.sim.model.site_name2id("rightp")
-        
-        self.left_hole_bottom_id = self.sim.model.site_name2id("hbleft")
-        self.right_hole_bottom_id = self.sim.model.site_name2id("hbright")
 
         self.table_top_id = self.sim.model.site_name2id("table_orign")
         self.center_of_table_id = self.sim.model.site_name2id("table_orign")
-        # pos_center_of_table = self.sim.data.site_xpos[self.center_of_table_id]
 
-        # 得到左右抓取点位置
         self.left_grab_point_id = self.sim.model.site_name2id("left_grab_point")
         self.right_grab_point_id = self.sim.model.site_name2id("right_grab_point")
-        # self.pot_center_id = self.sim.model.site_name2id("pot_center")
 
     def _reset_internal(self):
         """
@@ -406,8 +426,8 @@ class TwoArmAssemble(RobotEnv):
 
             di[pr0 + "peg_pos"] = np.array(self._left_peg_xpos)
             di[pr1 + "peg_pos"] = np.array(self._right_peg_xpos)
-            di[pr0 + "peg_to_hole"] = np.array(self._left_peg_to_hole)
-            di[pr1 + "peg_to_hole"] = np.array(self._right_peg_to_hole)
+            di[pr0 + "peg_to_rod_top"] = np.array(self._left_peg_to_rod_top)
+            di[pr1 + "peg_to_rod_top"] = np.array(self._right_peg_to_rod_top)
 
             di["object-state"] = np.concatenate(
                 [
@@ -415,8 +435,8 @@ class TwoArmAssemble(RobotEnv):
                     di["peg_quat"],
                     di[pr0 + "peg_pos"],
                     di[pr1 + "peg_pos"],
-                    di[pr0 + "peg_to_hole"],
-                    di[pr1 + "peg_to_hole"],
+                    di[pr0 + "peg_to_rod_top"],
+                    di[pr1 + "peg_to_rod_top"],
                 ]
             )
 
@@ -429,7 +449,7 @@ class TwoArmAssemble(RobotEnv):
         Returns:
             bool: True if peg is assembled
         """
-        return (np.sum(self._left_peg_to_hole**2) + np.sum(self._right_peg_to_hole**2) < 1e-4) and \
+        return (np.sum(self._left_rod_top_xpos**2) + np.sum(self._right_rod_top_xpos**2) < 1e-4) and \
             self._left_grab_error <= 1e-3 and \
             self._right_grab_error <= 1e-3
 
@@ -522,44 +542,44 @@ class TwoArmAssemble(RobotEnv):
             return np.array(self.sim.data.site_xpos[self.robots[1].eef_site_id])
 
     @property
-    def _left_hole_xpos(self):
+    def _left_rod_top_xpos(self):
         """
         Grab the position of left hole.
 
         Returns:
             np.array: (x,y,z) position of left hole
         """
-        return np.array(self.sim.data.site_xpos[self.left_hole_bottom_id])
+        return np.array(self.sim.data.site_xpos[self.rods[0].rod_top_id])
 
     @property
-    def _right_hole_xpos(self):
+    def _right_rod_top_xpos(self):
         """
         Grab the position of right hole.
 
         Returns:
             np.array: (x,y,z) position of right hole
         """
-        return np.array(self.sim.data.site_xpos[self.right_hole_bottom_id])
+        return np.array(self.sim.data.site_xpos[self.rods[1].rod_top_id])
 
     @property
-    def _left_peg_to_hole(self):
+    def _left_peg_to_rod_top(self):
         """
         Calculate vector from the left peg to the left hole.
 
         Returns:
             np.array: (dx,dy,dz) distance vector between left peg and left hole.
         """
-        return self._left_peg_xpos - self._left_hole_xpos
+        return self._left_peg_xpos - self._left_rod_top_xpos
 
     @property
-    def _right_peg_to_hole(self):
+    def _right_peg_to_rod_top(self):
         """
         Calculate vector from the right peg to the right hole.
 
         Returns:
             np.array: (dx,dy,dz) distance vector between right peg and right hole.
         """
-        return self._right_peg_xpos - self._right_hole_xpos
+        return self._right_peg_xpos - self._right_rod_top_xpos
 
     @property
     def _left_grab_error(self):
