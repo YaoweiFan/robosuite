@@ -257,7 +257,6 @@ class JointPositionController(Controller):
         if self.interpolator is not None:
             self.interpolator.set_goal(self.goal_qpos)
 
-
     @property
     def control_limits(self):
         """

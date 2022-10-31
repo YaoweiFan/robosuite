@@ -351,6 +351,10 @@ class RobotEnv(MujocoEnv):
             robot.control(robot_action, policy_step=policy_step)
             cutoff += robot.action_dim
 
+        if hasattr(self, "rods"):
+            for idx, rod in enumerate(self.rods):
+                rod.control(np.array([10]), policy_step=policy_step)
+
         # Also update indicator object if necessary
         if self.use_indicator_object:
             # Apply gravity compensation to indicator object too

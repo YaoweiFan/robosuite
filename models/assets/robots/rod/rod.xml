@@ -13,15 +13,14 @@
     <worldbody>
         <body name="link0" pos="0 0 0">
 
-<!--            <geom type="cylinder" size="0.025 0.0175" contype="0" conaffinity="0" group="1" name="link0_visual"/>-->
-<!--            <geom type="cylinder" size="0.025 0.0175" group="0" name="link0_collision"/>-->
+            <body name="base"/>
 
-            <body name="link1" pos="0 0 0.5">
-                <inertial pos="0 0 0" mass="1.0" diaginertia="0.0833895833333 0.0833895833333 0.0001125"/>
-                <joint name="joint1" pos="0 0 -0.6" axis="0 1 0" limited="true" range="-2.8973 2.8973" damping="0.1"/>
-                <geom type="cylinder" size="0.015 0.5" contype="0" conaffinity="0" group="1" name="link1_visual" material="smetal"/>
-                <geom type="cylinder" size="0.015 0.5" group="0" name="link1_collision"/>
-                <site name="rodtop" pos="0 0 0.5"  size="0.01 0.01 0.01" rgba="0 0 1 1" type="sphere" group="1"/>
+            <body name="link1" pos="0 0 0.2">
+                <inertial pos="0 0 0" mass="1.0" diaginertia="0.0208895833333 0.0208895833333 0.0001125"/>
+                <joint name="joint1" pos="0 0 -0.2" axis="0 1 0" limited="true" range="-2.8973 2.8973" damping="0.1"/>
+                <geom type="cylinder" size="0.01 0.2" contype="0" conaffinity="0" group="1" name="link1_visual" material="smetal"/>
+                <geom type="cylinder" size="0.01 0.2" group="0" name="link1_collision"/>
+                <site name="rodtop" pos="0 0 0.2"  size="0.01 0.01 0.01" rgba="0 0 1 1" type="sphere" group="1"/>
             </body>
 
         </body>

@@ -9,6 +9,7 @@ from robosuite.models.tasks import ManipulationTask, UniformRandomSampler
 from robosuite.models.robots import check_bimanual
 
 import robosuite.utils.transform_utils as transform
+from robosuite.controllers import load_controller_config
 
 from robosuite.robots.single_rod import SingleRod
 
@@ -279,13 +280,23 @@ class TwoArmRod(RobotEnv):
 
     def _load_rods(self):
         self.rod_names = ["Rod", "Rod"]
+        self.num_rods = 2
         self.rods = [None, None]
-        self.rod_configs = [{"initial_qpos": np.array([0])}, {"initial_qpos": np.array([0])}]
+        controller_name = "JOINT_POSITION"
+        controller_configs = load_controller_config(default_controller=controller_name)
+        self.rod_configs = [
+            {
+                "controller_config": controller_configs,
+                "control_freq": 20,
+                "initial_qpos": np.array([0])
+            }
+            for _ in range(self.num_rods)
+        ]
 
         for idx, (name, config) in enumerate(zip(self.rod_names, self.rod_configs)):
             self.rods[idx] = SingleRod(
                 robot_type=name,
-                idn="rod{}_".format(idx),
+                idn="rod{}".format(idx),
                 **config
             )
             self.rods[idx].load_model()
@@ -295,7 +306,7 @@ class TwoArmRod(RobotEnv):
         Loads an xml model, puts it in self.model
         """
         super()._load_model()
-        self._load_rods()
+        self._load_rods()  # 载入 rod model
 
         # Adjust base pose(s) accordingly
         if self.env_configuration == "bimanual":
@@ -317,10 +328,10 @@ class TwoArmRod(RobotEnv):
                     xpos = np.array(xpos) + np.array((0, offset, 0))
                     robot.robot_model.set_base_xpos(xpos)
 
-        # Adjust base pose(s) of rods accordingly
+        # 调整 rod 的 base pos
         for rod, offset in zip(self.rods, (-0.25, 0.25)):
             xpos = rod.robot_model.base_xpos_offset["table"](self.table_full_size[0])
-            xpos = np.array(xpos) + np.array((0.6, offset, 0))
+            xpos = np.array(xpos) + np.array((0.5, offset, 0.1))
             rod.robot_model.set_base_xpos(xpos)
 
         # load model for table top workspace
@@ -377,6 +388,10 @@ class TwoArmRod(RobotEnv):
         Resets simulation internal configurations.
         """
         super()._reset_internal()
+
+        # Reset robot and update action space dimension along the way
+        for rod in self.rods:
+            rod.reset(deterministic=True)
 
         # Reset all object positions using initializer sampler if we're not directly loading from an xml
         if not self.deterministic_reset:

@@ -1,5 +1,6 @@
 import numpy as np
 from collections import OrderedDict
+import copy
 
 from robosuite.controllers import controller_factory
 from robosuite.robots.robot import Robot
@@ -12,13 +13,14 @@ class SingleRod(Robot):
     def __init__(self,
                  robot_type,
                  idn,
+                 controller_config,
                  initial_qpos,
                  initialization_noise=None,
                  control_freq=10
                  ):
 
         self.controller = None
-        self.controller_config = None
+        self.controller_config = copy.deepcopy(controller_config)
         self.rod_top_id = None
         self.control_freq = control_freq
 
@@ -32,6 +34,7 @@ class SingleRod(Robot):
     def _load_controller(self):
         self.controller_config["robot_name"] = self.name
         self.controller_config["sim"] = self.sim
+        self.controller_config["eef_name"] = self.robot_model.naming_prefix + "rodtop"
         self.controller_config["joint_indexes"] = {
             "joints": self.joint_indexes,
             "qpos": self._ref_joint_pos_indexes,
@@ -48,8 +51,8 @@ class SingleRod(Robot):
 
     def reset(self, deterministic=False):
         super().reset(deterministic)
-        # Update base pos / ori references in controller
 
+        # Update base pos / ori references in controller
         self.controller.update_base_pose(self.base_pos, self.base_ori)
 
     def setup_references(self):

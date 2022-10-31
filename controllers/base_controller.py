@@ -147,61 +147,72 @@ class Controller(object, metaclass=abc.ABCMeta):
             self.sim.forward()
 
             self.ee_pos = np.array(self.sim.data.site_xpos[self.sim.model.site_name2id(self.eef_name)])
-            self.ee_ori_mat = np.array(self.sim.data.site_xmat[self.sim.model.site_name2id(self.eef_name)].reshape([3, 3]))
+            self.ee_ori_mat = np.array(
+                self.sim.data.site_xmat[self.sim.model.site_name2id(self.eef_name)].reshape([3, 3])
+            )
             self.ee_pos_vel = np.array(self.sim.data.site_xvelp[self.sim.model.site_name2id(self.eef_name)])
             self.ee_ori_vel = np.array(self.sim.data.site_xvelr[self.sim.model.site_name2id(self.eef_name)])
 
-            self.ft_pos = np.array(self.sim.data.site_xpos[self.sim.model.site_name2id(self.ft_name)])
-            self.ft_ori_mat = np.array(self.sim.data.site_xmat[self.sim.model.site_name2id(self.ft_name)].reshape([3, 3]))
-            
-            self.eef_inertial_pos = np.array(self.sim.data.site_xpos[self.sim.model.site_name2id(self.eef_inertial_name)])
-            self.eef_inertial_ori_mat = np.array(self.sim.data.site_xmat[self.sim.model.site_name2id(self.eef_inertial_name)].reshape([3, 3]))
-
             self.joint_pos = np.array(self.sim.data.qpos[self.qpos_index])
             self.joint_vel = np.array(self.sim.data.qvel[self.qvel_index])
-
-            self.J_pos = np.array(self.sim.data.get_site_jacp(self.eef_name).reshape((3, -1))[:, self.qvel_index])
-            self.J_ori = np.array(self.sim.data.get_site_jacr(self.eef_name).reshape((3, -1))[:, self.qvel_index])
-            self.J_full = np.array(np.vstack([self.J_pos, self.J_ori]))
 
             mass_matrix = np.ndarray(shape=(len(self.sim.data.qvel) ** 2,), dtype=np.float64, order='C')
             mujoco_py.cymj._mj_fullM(self.sim.model, mass_matrix, self.sim.data.qM)
             mass_matrix = np.reshape(mass_matrix, (len(self.sim.data.qvel), len(self.sim.data.qvel)))
             self.mass_matrix = mass_matrix[self.qvel_index, :][:, self.qvel_index]
 
-            # 末端受到的外力在笛卡尔空间的表示
-            sensor_idx = np.sum(self.sim.model.sensor_dim[:self.sim.model.sensor_name2id(self.fs_name)])
-            sensor_dim = self.sim.model.sensor_dim[self.sim.model.sensor_name2id(self.fs_name)]
-            eef_force = np.array(self.sim.data.sensordata[sensor_idx: sensor_idx + sensor_dim])
-            # eef_force = np.clip(eef_force, -20, 20)
-            eef_force = 0.9 * self.eef_force + 0.1 * eef_force
-            self.eef_force = eef_force
-            sensor_idx = np.sum(self.sim.model.sensor_dim[:self.sim.model.sensor_name2id(self.ts_name)])
-            sensor_dim = self.sim.model.sensor_dim[self.sim.model.sensor_name2id(self.ts_name)]
-            eef_torque = np.array(self.sim.data.sensordata[sensor_idx: sensor_idx + sensor_dim])
-            # eef_torque = np.clip(eef_torque, -20, 20)
-            eef_torque = 0.9 * self.eef_torque + 0.1 * eef_torque
-            self.eef_torque = eef_torque
-            # gripper重力和外力 在gripper末端坐标系下的表示 --> 基坐标系
-            rot1 = np.dot(np.linalg.inv(self.ft_ori_mat), self.ee_ori_mat)
-            p1 = self.ee_pos - self.ft_pos
-            p1 = np.dot(np.linalg.inv(self.ft_ori_mat), p1)
-            cp1 = np.array([[0, -p1[2], p1[1]], [p1[2], 0, -p1[0]], [-p1[1], p1[0], 0]])
-            ad1 = np.array(np.hstack([np.array(np.vstack([rot1, np.dot(cp1,rot1)])), np.array(np.vstack([np.zeros((3, 3)), rot1]))]))
-            fsg = np.dot(ad1.transpose(), np.concatenate((-eef_force, -eef_torque)))
-            fsg = np.array(np.concatenate((np.dot(self.ee_ori_mat, fsg[:3]), np.dot(self.ee_ori_mat, fsg[3:6]))))
-            # gripper重力 在gripper末端坐标系下的表示 --> 基坐标系
-            rot2 = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), self.ee_ori_mat)
-            p2 = self.ee_pos - self.eef_inertial_pos
-            p2 = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), p2)
-            cp2 = np.array([[0, -p2[2], p2[1]], [p2[2], 0, -p2[0]], [-p2[1], p2[0], 0]])
-            ad2 = np.array(np.hstack([np.array(np.vstack([rot2, np.dot(cp2,rot2)])), np.array(np.vstack([np.zeros((3, 3)), rot2]))]))
-            fri = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), np.array([0, 0, -0.5*10]))
-            tri = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), np.array([0, 0, 0]))
-            fig = np.dot(ad2.transpose(), np.concatenate((fri, tri)))
-            fig = np.array(np.concatenate((np.dot(self.ee_ori_mat, fig[:3]), np.dot(self.ee_ori_mat, fig[3:6]))))
-            # 外力 在gripper末端坐标系下的表示 --> 基坐标系
-            self.eef_ft = fsg - fig
+            if not ("rod" in self.ft_name):
+                self.ft_pos = np.array(self.sim.data.site_xpos[self.sim.model.site_name2id(self.ft_name)])
+                self.ft_ori_mat = np.array(
+                    self.sim.data.site_xmat[self.sim.model.site_name2id(self.ft_name)].reshape([3, 3])
+                )
+            
+                self.eef_inertial_pos = np.array(
+                    self.sim.data.site_xpos[self.sim.model.site_name2id(self.eef_inertial_name)]
+                )
+                self.eef_inertial_ori_mat = np.array(
+                    self.sim.data.site_xmat[self.sim.model.site_name2id(self.eef_inertial_name)].reshape([3, 3])
+                )
+
+                self.J_pos = np.array(self.sim.data.get_site_jacp(self.eef_name).reshape((3, -1))[:, self.qvel_index])
+                self.J_ori = np.array(self.sim.data.get_site_jacr(self.eef_name).reshape((3, -1))[:, self.qvel_index])
+                self.J_full = np.array(np.vstack([self.J_pos, self.J_ori]))
+
+                # 末端受到的外力在笛卡尔空间的表示
+                sensor_idx = np.sum(self.sim.model.sensor_dim[:self.sim.model.sensor_name2id(self.fs_name)])
+                sensor_dim = self.sim.model.sensor_dim[self.sim.model.sensor_name2id(self.fs_name)]
+                eef_force = np.array(self.sim.data.sensordata[sensor_idx: sensor_idx + sensor_dim])
+                # eef_force = np.clip(eef_force, -20, 20)
+                eef_force = 0.9 * self.eef_force + 0.1 * eef_force
+                self.eef_force = eef_force
+                sensor_idx = np.sum(self.sim.model.sensor_dim[:self.sim.model.sensor_name2id(self.ts_name)])
+                sensor_dim = self.sim.model.sensor_dim[self.sim.model.sensor_name2id(self.ts_name)]
+                eef_torque = np.array(self.sim.data.sensordata[sensor_idx: sensor_idx + sensor_dim])
+                # eef_torque = np.clip(eef_torque, -20, 20)
+                eef_torque = 0.9 * self.eef_torque + 0.1 * eef_torque
+                self.eef_torque = eef_torque
+                # gripper重力和外力 在gripper末端坐标系下的表示 --> 基坐标系
+                rot1 = np.dot(np.linalg.inv(self.ft_ori_mat), self.ee_ori_mat)
+                p1 = self.ee_pos - self.ft_pos
+                p1 = np.dot(np.linalg.inv(self.ft_ori_mat), p1)
+                cp1 = np.array([[0, -p1[2], p1[1]], [p1[2], 0, -p1[0]], [-p1[1], p1[0], 0]])
+                ad1 = np.array(np.hstack([np.array(np.vstack([rot1, np.dot(cp1, rot1)])),
+                                          np.array(np.vstack([np.zeros((3, 3)), rot1]))]))
+                fsg = np.dot(ad1.transpose(), np.concatenate((-eef_force, -eef_torque)))
+                fsg = np.array(np.concatenate((np.dot(self.ee_ori_mat, fsg[:3]), np.dot(self.ee_ori_mat, fsg[3:6]))))
+                # gripper重力 在gripper末端坐标系下的表示 --> 基坐标系
+                rot2 = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), self.ee_ori_mat)
+                p2 = self.ee_pos - self.eef_inertial_pos
+                p2 = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), p2)
+                cp2 = np.array([[0, -p2[2], p2[1]], [p2[2], 0, -p2[0]], [-p2[1], p2[0], 0]])
+                ad2 = np.array(np.hstack([np.array(np.vstack([rot2, np.dot(cp2, rot2)])),
+                                          np.array(np.vstack([np.zeros((3, 3)), rot2]))]))
+                fri = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), np.array([0, 0, -0.5*10]))
+                tri = np.dot(np.linalg.inv(self.eef_inertial_ori_mat), np.array([0, 0, 0]))
+                fig = np.dot(ad2.transpose(), np.concatenate((fri, tri)))
+                fig = np.array(np.concatenate((np.dot(self.ee_ori_mat, fig[:3]), np.dot(self.ee_ori_mat, fig[3:6]))))
+                # 外力 在gripper末端坐标系下的表示 --> 基坐标系
+                self.eef_ft = fsg - fig
 
             # Clear self.new_update
             self.new_update = False
