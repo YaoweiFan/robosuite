@@ -4,7 +4,7 @@ import numpy as np
 from robosuite.environments.robot_env import RobotEnv
 
 from robosuite.models.arenas import TableArena
-from robosuite.models.objects import TwoAxisPegObject
+from robosuite.models.objects import StickObject
 from robosuite.models.tasks import ManipulationTask, UniformRandomSampler
 from robosuite.models.robots import check_bimanual
 
@@ -164,6 +164,7 @@ class TwoArmRod(RobotEnv):
         camera_heights=256,
         camera_widths=256,
         camera_depths=False,
+        prepare_steps=3,
     ):
         # First, verify that correct number of robots are being inputted
         self.env_configuration = env_configuration
@@ -176,6 +177,8 @@ class TwoArmRod(RobotEnv):
         # reward configuration
         self.reward_scale = reward_scale
         self.reward_shaping = reward_shaping
+
+        self.prepare_steps = prepare_steps
 
         # whether to use ground-truth object states
         self.use_object_obs = use_object_obs
@@ -214,7 +217,7 @@ class TwoArmRod(RobotEnv):
             camera_depths=camera_depths,
         )
 
-    def reward(self, action=None):
+    def reward(self):
         """
         Reward function for the task.
 
@@ -233,50 +236,77 @@ class TwoArmRod(RobotEnv):
         Note that the final reward is normalized and scaled by reward_scale / 3.0 as
         well so that the max score is equal to reward_scale
 
-        Args:
-            action (np array): [NOT USED]
-
         Returns:
             float: reward value
         """
         reward = 0
 
-        # use a shaping reward
-        if self.reward_shaping:
-
-            _contacts_0_lf = len(list(
-                self.find_contacts(
-                    self.robots[0].gripper.important_geoms["left_finger"], ["peg-1"]
-                )
-            )) > 0
-            _contacts_0_rf = len(list(
-                self.find_contacts(
-                    self.robots[0].gripper.important_geoms["right_finger"], ["peg-1"]
-                )
-            )) > 0
-            _contacts_1_lf = len(list(
-                self.find_contacts(
-                    self.robots[1].gripper.important_geoms["left_finger"], ["peg-1"]
-                )
-            )) > 0
-            _contacts_1_rf = len(list(
-                self.find_contacts(
-                    self.robots[1].gripper.important_geoms["right_finger"], ["peg-1"]
-                )
-            )) > 0
-
-            # Reaching reward with Grasping
-            if _contacts_0_lf and _contacts_0_rf:
-                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._left_rod_top_xpos)))
-
-            # Reaching reward with Grasping
-            if _contacts_1_lf and _contacts_1_rf:
-                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._right_rod_top_xpos)))
-
-        if self.reward_scale is not None:
-            reward *= self.reward_scale / 3.0
-
         return reward
+
+    def _pre_action(self, action, policy_step=False):
+        """
+        Do any preprocessing before taking an action.
+
+        Args:
+            action (np.array): Action to execute within the environment
+            policy_step (bool): Whether this current loop is an actual policy step or internal sim update step
+        """
+        super()._pre_action(action, policy_step)
+
+        for idx, rod in enumerate(self.rods):
+            rod.control(des_qpos=np.array([0]), policy_step=policy_step)
+
+    def _post_action(self):
+        """
+        Run any necessary visualization after running the action
+
+        Returns:
+            3-tuple:
+
+                - (float) reward from the environment
+                - (bool) whether the current episode is completed or not
+                - (dict) empty dict to be filled with information by subclassed method
+
+        """
+        super()._post_action()
+
+        reward = self.reward()
+        success = False
+        defeat = False
+        timeout = False
+
+        self.robot1_ft_out_of_range = \
+            self.robots[0].ee_force[0] > 200 or self.robots[0].ee_force[0] < -200 or \
+            self.robots[0].ee_force[1] > 200 or self.robots[0].ee_force[1] < -200 or \
+            self.robots[0].ee_force[2] > 800 or self.robots[0].ee_force[2] < -800 or \
+            self.robots[0].ee_torque[0] > 5 or self.robots[0].ee_torque[0] < -5 or \
+            self.robots[0].ee_torque[1] > 5 or self.robots[0].ee_torque[1] < -5 or \
+            self.robots[0].ee_torque[2] > 3 or self.robots[0].ee_torque[2] < -3
+
+        self.robot2_ft_out_of_range = \
+            self.robots[1].ee_force[0] > 200 or self.robots[1].ee_force[0] < -200 or \
+            self.robots[1].ee_force[1] > 200 or self.robots[1].ee_force[1] < -200 or \
+            self.robots[1].ee_force[2] > 800 or self.robots[1].ee_force[2] < -800 or \
+            self.robots[1].ee_torque[0] > 5 or self.robots[1].ee_torque[0] < -5 or \
+            self.robots[1].ee_torque[1] > 5 or self.robots[1].ee_torque[1] < -5 or \
+            self.robots[1].ee_torque[2] > 3 or self.robots[1].ee_torque[2] < -3
+
+        # done 的几个原因：时间超出限制、目标物体脱离抓手、力传感器示数超出限制
+        self.done = (self.timestep >= self.horizon or
+                     self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or
+                     self.robot1_ft_out_of_range or self.robot2_ft_out_of_range) and (not self.ignore_done)
+
+        if self.done:
+            # 明确 done 的原因
+            if self._check_success():
+                success = True
+            elif self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or \
+                    self.robot1_ft_out_of_range or self.robot2_ft_out_of_range:
+                defeat = True
+            else:
+                timeout = True
+
+        return reward, self.done, {"success": success, "defeat": defeat, "timeout": timeout}
 
     def _load_rods(self):
         self.rod_names = ["Rod", "Rod"]
@@ -331,14 +361,14 @@ class TwoArmRod(RobotEnv):
         # 调整 rod 的 base pos
         for rod, offset in zip(self.rods, (-0.25, 0.25)):
             xpos = rod.robot_model.base_xpos_offset["table"](self.table_full_size[0])
-            xpos = np.array(xpos) + np.array((0.5, offset, 0.1))
+            xpos = np.array(xpos) + np.array((0.5, offset, 0.13))
             rod.robot_model.set_base_xpos(xpos)
 
         # load model for table top workspace
         self.mujoco_arena = TableArena(
             table_full_size=self.table_full_size,
             table_friction=self.table_friction,
-            table_offset=(0, 0, 1.0),
+            table_offset=(0, 0, 1.038),
         )
         if self.use_indicator_object:
             self.mujoco_arena.add_pos_indicator()
@@ -347,8 +377,8 @@ class TwoArmRod(RobotEnv):
         self.mujoco_arena.set_origin([0, 0, 0])
 
         # initialize objects of interest
-        self.peg = TwoAxisPegObject(name="peg")
-        self.mujoco_objects = OrderedDict([("peg", self.peg)])
+        self.peg = StickObject(name="stick")
+        self.mujoco_objects = OrderedDict([("stick", self.peg)])
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
@@ -373,7 +403,7 @@ class TwoArmRod(RobotEnv):
             rod.setup_references()
 
         # Additional object references from this env
-        self.peg_body_id = self.sim.model.body_name2id("peg")
+        self.peg_body_id = self.sim.model.body_name2id("stick")
         self.left_peg_site_id = self.sim.model.site_name2id("leftp")
         self.right_peg_site_id = self.sim.model.site_name2id("rightp")
 
@@ -400,10 +430,13 @@ class TwoArmRod(RobotEnv):
             # obj_pos, obj_quat = self.model.place_objects()
             self.model.place_objects()
 
-            # Loop through all objects and reset their positions
-            # for i, (obj_name, _) in enumerate(self.mujoco_objects.items()):
-            #     self.sim.data.set_joint_qpos(obj_name + "_jnt0", np.concatenate([np.array(obj_pos[i]),
-            #                                                                      np.array(obj_quat[i])]))
+        # reset() 的最后一步，收紧夹爪
+        for i in range(self.prepare_steps):
+            self._prepare_action(np.array([0, 0, 0, 1, 0, 0, 0, 1]))
+
+        for robot in self.robots:
+            robot.controller.has_initialized = True
+
 
     def _get_observation(self):
         """

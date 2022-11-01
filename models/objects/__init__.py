@@ -16,6 +16,7 @@ from .xml_objects import (
     PlateWithHoleObject,
     DoorObject,
     TwoAxisPegObject,
+    StickObject,
 )
 
 from .generated_objects import (

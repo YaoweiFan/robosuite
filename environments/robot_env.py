@@ -169,8 +169,8 @@ class RobotEnv(MujocoEnv):
                 # "gripper_type": "RethinkGripper",
                 "gripper_visualization": gripper_visualizations[idx],
                 "control_freq": control_freq,
-                "initial_qpos": np.array([-3.65415394e-04, -1.33624474e-01, 3.96674314e-04, 
-                            -2.85387452e+00, 1.29216639e-04, 2.72025005e+00, -7.84995732e-01])
+                "initial_qpos": np.array([-3.65415394e-04, -1.33624474e-01, 3.96674314e-04,
+                                          -2.85387452e+00, 1.29216639e-04, 2.72025005e+00, -7.84995732e-01])
             }
             for idx in range(self.num_robots)
         ]
@@ -227,7 +227,7 @@ class RobotEnv(MujocoEnv):
         """
         if self.use_indicator_object:
             index = self._ref_indicator_pos_low
-            self.sim.data.qpos[index : index + 3] = pos
+            self.sim.data.qpos[index: index + 3] = pos
 
     @staticmethod
     def _input2list(inp, length):
@@ -351,10 +351,6 @@ class RobotEnv(MujocoEnv):
             robot.control(robot_action, policy_step=policy_step)
             cutoff += robot.action_dim
 
-        if hasattr(self, "rods"):
-            for idx, rod in enumerate(self.rods):
-                rod.control(np.array([10]), policy_step=policy_step)
-
         # Also update indicator object if necessary
         if self.use_indicator_object:
             # Apply gravity compensation to indicator object too
@@ -363,12 +359,9 @@ class RobotEnv(MujocoEnv):
                 ] = self.sim.data.qfrc_bias[
                     self._ref_indicator_vel_low: self._ref_indicator_vel_high]
 
-    def _post_action(self, action):
+    def _post_action(self):
         """
         Run any necessary visualization after running the action
-
-        Args:
-            action (np.array): Action being passed during this timestep
 
         Returns:
             3-tuple:
@@ -378,9 +371,7 @@ class RobotEnv(MujocoEnv):
                 - (dict) empty dict to be filled with information by subclassed method
 
         """
-        ret = super()._post_action(action)
         self._visualization()
-        return ret
 
     def _get_observation(self):
         """
@@ -529,11 +520,11 @@ class RobotEnv(MujocoEnv):
             # Now, load the robot models
             self.robots[idx].load_model()
 
-    def reward(self, action):
+    def reward(self):
         """
         Runs superclass method by default
         """
-        return super().reward(action)
+        raise NotImplementedError
 
     def _check_success(self):
         """

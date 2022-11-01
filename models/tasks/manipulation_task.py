@@ -4,7 +4,7 @@ from copy import deepcopy
 from robosuite.models.world import MujocoWorldBase
 from robosuite.models.tasks import UniformRandomSampler
 from robosuite.models.objects import MujocoGeneratedObject, MujocoXMLObject
-from robosuite.utils.mjcf_utils import new_joint, array_to_string
+from robosuite.utils.mjcf_utils import new_joint
 
 
 class ManipulationTask(MujocoWorldBase):
@@ -116,9 +116,7 @@ class ManipulationTask(MujocoWorldBase):
             self.worldbody.append(obj)
 
             if not is_visual:
-                self.max_horizontal_radius = max(
-                    self.max_horizontal_radius, obj_mjcf.get_horizontal_radius()
-                )
+                self.max_horizontal_radius = max(self.max_horizontal_radius, obj_mjcf.get_horizontal_radius())
 
     def place_objects(self):
         """
@@ -129,5 +127,5 @@ class ManipulationTask(MujocoWorldBase):
             # self.objects[i].set("pos", array_to_string(pos_arr[i]))
             # self.objects[i].set("quat", array_to_string(quat_arr[i]))
             self.objects[i].set("pos", "-0.2 0 1.0275")
-            self.objects[i].set("quat","0.707105 0 0 0.707105")
+            self.objects[i].set("quat", "0.707105 0 0 0.707105")
         # return pos_arr, quat_arr

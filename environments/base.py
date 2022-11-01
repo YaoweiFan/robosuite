@@ -244,6 +244,17 @@ class MujocoEnv(metaclass=EnvMeta):
         """
         return OrderedDict()
 
+    def _prepare_action(self, action):
+        """
+        准备动作
+        """
+        policy_step = True
+        for i in range(int(2 * self.control_timestep / self.model_timestep)):
+            self.sim.forward()
+            self._pre_action(action, policy_step)
+            self.sim.step()
+            policy_step = False
+
     def step(self, action):
         """
         Takes a step in simulation with control command @action.
@@ -307,7 +318,7 @@ class MujocoEnv(metaclass=EnvMeta):
         # Note: this is done all at once to avoid floating point inaccuracies
         self.cur_time += self.control_timestep
 
-        reward, done, info = self._post_action(action)
+        reward, done, info = self._post_action()
         return self._get_observation(), reward, done, info
 
     def _pre_action(self, action, policy_step=False):
@@ -318,14 +329,11 @@ class MujocoEnv(metaclass=EnvMeta):
             action (np.array): Action to execute within the environment
             policy_step (bool): Whether this current loop is an actual policy step or internal sim update step
         """
-        self.sim.data.ctrl[:] = action
+        raise NotImplementedError
 
-    def _post_action(self, action):
+    def _post_action(self):
         """
         Do any housekeeping after taking an action.
-
-        Args:
-            action (np.array): Action to execute within the environment
 
         Returns:
             3-tuple:
@@ -335,50 +343,11 @@ class MujocoEnv(metaclass=EnvMeta):
                 - (dict) empty dict to be filled with information by subclassed method
 
         """
-        reward = self.reward(action)
-        success = False
-        defeat = False
-        timeout = False
+        raise NotImplementedError
 
-        self.robot1_ft_out_of_range = self.robots[0].ee_force[0] > 200 or self.robots[0].ee_force[0] < -200 or\
-                                 self.robots[0].ee_force[1] > 200 or self.robots[0].ee_force[1] < -200 or\
-                                 self.robots[0].ee_force[2] > 800 or self.robots[0].ee_force[2] < -800 or\
-                                 self.robots[0].ee_torque[0] > 5 or self.robots[0].ee_torque[0] < -5 or\
-                                 self.robots[0].ee_torque[1] > 5 or self.robots[0].ee_torque[1] < -5 or\
-                                 self.robots[0].ee_torque[2] > 3 or self.robots[0].ee_torque[2] < -3
-
-        self.robot2_ft_out_of_range = self.robots[1].ee_force[0] > 200 or self.robots[1].ee_force[0] < -200 or\
-                                 self.robots[1].ee_force[1] > 200 or self.robots[1].ee_force[1] < -200 or\
-                                 self.robots[1].ee_force[2] > 800 or self.robots[1].ee_force[2] < -800 or\
-                                 self.robots[1].ee_torque[0] > 5 or self.robots[1].ee_torque[0] < -5 or\
-                                 self.robots[1].ee_torque[1] > 5 or self.robots[1].ee_torque[1] < -5 or\
-                                 self.robots[1].ee_torque[2] > 3 or self.robots[1].ee_torque[2] < -3
-
-        # done 的几个原因：时间超出限制、目标物体脱离抓手、力传感器示数超出限制
-        if self.ignore_done:
-            self.done = False
-        else:
-            self.done = self.timestep >= self.horizon or\
-                        self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or\
-                        self.robot1_ft_out_of_range or self.robot2_ft_out_of_range
-
-        if self.done:
-            if self._check_success():
-                success = True
-            elif self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or\
-                 self.robot1_ft_out_of_range or self.robot2_ft_out_of_range:
-                defeat = True
-            else:
-                timeout = True
-
-        return reward, self.done, {"success": success, "defeat": defeat, "timeout": timeout}
-
-    def reward(self, action):
+    def reward(self):
         """
         Reward should be a function of state and action
-
-        Args:
-            action (np.array): Action to execute within the environment
 
         Returns:
             float: Reward from environment

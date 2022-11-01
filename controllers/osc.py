@@ -194,7 +194,7 @@ class OperationalSpaceController(Controller):
         self.relative_ori = np.zeros(3)
         self.ori_ref = None
 
-        self.count = 0
+        self.has_initialized = False
 
     def set_goal(self, action, set_pos=None, set_ori=None):
         """
@@ -328,9 +328,10 @@ class OperationalSpaceController(Controller):
         #     decoupled_torque = np.dot(lambda_ori, desired_torque)
         #     decoupled_wrench = np.concatenate([decoupled_force, decoupled_torque])
         # else:
-        if self.count >= 150:
-            desired_force[2] += 5
-        self.count += 1
+
+        # 完成初始化（夹爪夹紧）之后，需要补偿 object 的重力
+        desired_force[2] += 5 * self.has_initialized
+
         desired_wrench = np.concatenate([desired_force, desired_torque]) + self.eef_ft
         decoupled_wrench = np.dot(lambda_full, desired_wrench)
 

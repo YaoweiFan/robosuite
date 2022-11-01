@@ -131,6 +131,7 @@ class PlateWithHoleObject(MujocoXMLObject):
     def __init__(self, name=None, joints=None):
         super().__init__(xml_path_completion("objects/plate-with-hole.xml"), name=name, joints=joints)
 
+
 class TwoAxisPegObject(MujocoXMLObject):
     """
     两端携轴的长梁
@@ -138,6 +139,16 @@ class TwoAxisPegObject(MujocoXMLObject):
 
     def __init__(self, name=None, joints=None):
         super().__init__(xml_path_completion("objects/two-axis-peg.xml"), name=name, joints=joints)
+
+
+class StickObject(MujocoXMLObject):
+    """
+    长梁
+    """
+
+    def __init__(self, name=None, joints=None):
+        super().__init__(xml_path_completion("objects/stick.xml"), name=name, joints=joints)
+
 
 class DoorObject(MujocoXMLObject):
     """

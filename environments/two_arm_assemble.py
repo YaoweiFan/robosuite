@@ -161,6 +161,7 @@ class TwoArmAssemble(RobotEnv):
         camera_heights=256,
         camera_widths=256,
         camera_depths=False,
+        prepare_steps=3,
     ):
         # First, verify that correct number of robots are being inputted
         self.env_configuration = env_configuration
@@ -173,6 +174,8 @@ class TwoArmAssemble(RobotEnv):
         # reward configuration
         self.reward_scale = reward_scale
         self.reward_shaping = reward_shaping
+
+        self.prepare_steps = prepare_steps
 
         # whether to use ground-truth object states
         self.use_object_obs = use_object_obs
@@ -211,7 +214,7 @@ class TwoArmAssemble(RobotEnv):
             camera_depths=camera_depths,
         )
 
-    def reward(self, action=None):
+    def reward(self):
         """
         Reward function for the task.
 
@@ -230,9 +233,6 @@ class TwoArmAssemble(RobotEnv):
         Note that the final reward is normalized and scaled by reward_scale / 3.0 as
         well so that the max score is equal to reward_scale
 
-        Args:
-            action (np array): [NOT USED]
-
         Returns:
             float: reward value
         """
@@ -240,25 +240,24 @@ class TwoArmAssemble(RobotEnv):
 
         # use a shaping reward
         if self.reward_shaping:
-
             _contacts_0_lf = len(list(
                 self.find_contacts(
-                    self.robots[0].gripper.important_geoms["left_finger"], ["peg-1"]
+                    self.robots[0].gripper.important_geoms["left_finger"], ["peg_top"]
                 )
             )) > 0
             _contacts_0_rf = len(list(
                 self.find_contacts(
-                    self.robots[0].gripper.important_geoms["right_finger"], ["peg-1"]
+                    self.robots[0].gripper.important_geoms["right_finger"], ["peg_top"]
                 )
             )) > 0
             _contacts_1_lf = len(list(
                 self.find_contacts(
-                    self.robots[1].gripper.important_geoms["left_finger"], ["peg-1"]
+                    self.robots[1].gripper.important_geoms["left_finger"], ["peg_top"]
                 )
             )) > 0
             _contacts_1_rf = len(list(
                 self.find_contacts(
-                    self.robots[1].gripper.important_geoms["right_finger"], ["peg-1"]
+                    self.robots[1].gripper.important_geoms["right_finger"], ["peg_top"]
                 )
             )) > 0
 
@@ -270,10 +269,62 @@ class TwoArmAssemble(RobotEnv):
             if _contacts_1_lf and _contacts_1_rf:
                 reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._right_peg_to_hole)))
 
-        if self.reward_scale is not None:
-            reward *= self.reward_scale / 3.0
+            if self.reward_scale is not None:
+                reward *= self.reward_scale / 3.0
 
         return reward
+
+    def _post_action(self):
+        """
+        Run any necessary visualization after running the action
+
+        Returns:
+            3-tuple:
+
+                - (float) reward from the environment
+                - (bool) whether the current episode is completed or not
+                - (dict) empty dict to be filled with information by subclassed method
+
+        """
+        super()._post_action()
+
+        reward = self.reward()
+        success = False
+        defeat = False
+        timeout = False
+
+        self.robot1_ft_out_of_range = \
+            self.robots[0].ee_force[0] > 200 or self.robots[0].ee_force[0] < -200 or \
+            self.robots[0].ee_force[1] > 200 or self.robots[0].ee_force[1] < -200 or \
+            self.robots[0].ee_force[2] > 800 or self.robots[0].ee_force[2] < -800 or \
+            self.robots[0].ee_torque[0] > 5 or self.robots[0].ee_torque[0] < -5 or \
+            self.robots[0].ee_torque[1] > 5 or self.robots[0].ee_torque[1] < -5 or \
+            self.robots[0].ee_torque[2] > 3 or self.robots[0].ee_torque[2] < -3
+
+        self.robot2_ft_out_of_range = \
+            self.robots[1].ee_force[0] > 200 or self.robots[1].ee_force[0] < -200 or \
+            self.robots[1].ee_force[1] > 200 or self.robots[1].ee_force[1] < -200 or \
+            self.robots[1].ee_force[2] > 800 or self.robots[1].ee_force[2] < -800 or \
+            self.robots[1].ee_torque[0] > 5 or self.robots[1].ee_torque[0] < -5 or \
+            self.robots[1].ee_torque[1] > 5 or self.robots[1].ee_torque[1] < -5 or \
+            self.robots[1].ee_torque[2] > 3 or self.robots[1].ee_torque[2] < -3
+
+        # done 的几个原因：时间超出限制、目标物体脱离抓手、力传感器示数超出限制
+        self.done = (self.timestep >= self.horizon or
+                     self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or
+                     self.robot1_ft_out_of_range or self.robot2_ft_out_of_range) and (not self.ignore_done)
+
+        if self.done:
+            # 明确 done 的原因
+            if self._check_success():
+                success = True
+            elif self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or \
+                    self.robot1_ft_out_of_range or self.robot2_ft_out_of_range:
+                defeat = True
+            else:
+                timeout = True
+
+        return reward, self.done, {"success": success, "defeat": defeat, "timeout": timeout}
 
     def _load_model(self):
         """
@@ -365,10 +416,12 @@ class TwoArmAssemble(RobotEnv):
             # obj_pos, obj_quat = self.model.place_objects()
             self.model.place_objects()
 
-            # Loop through all objects and reset their positions
-            # for i, (obj_name, _) in enumerate(self.mujoco_objects.items()):
-            #     self.sim.data.set_joint_qpos(obj_name + "_jnt0", np.concatenate([np.array(obj_pos[i]),
-            #                                                                      np.array(obj_quat[i])]))
+        # reset() 的最后一步，收紧夹爪
+        for i in range(self.prepare_steps):
+            self._prepare_action(np.array([0, 0, 0, 1, 0, 0, 0, 1]))
+
+        for robot in self.robots:
+            robot.controller.has_initialized = True
 
     def _get_observation(self):
         """

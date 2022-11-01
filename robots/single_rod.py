@@ -59,10 +59,10 @@ class SingleRod(Robot):
         super().setup_references()
         self.rod_top_id = self.sim.model.site_name2id(self.robot_model.naming_prefix + "rodtop")
 
-    def control(self, action, policy_step=False):
+    def control(self, des_qpos, policy_step=False):
         # Update the controller goal if this is a new policy step
         if policy_step:
-            self.controller.set_goal(action)
+            self.controller.set_goal(np.array([0]), set_qpos=des_qpos)
 
         # Now run the controller for a step
         torques = self.controller.run_controller()
