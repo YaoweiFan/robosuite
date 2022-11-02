@@ -359,9 +359,9 @@ class TwoArmRod(RobotEnv):
                     robot.robot_model.set_base_xpos(xpos)
 
         # 调整 rod 的 base pos
-        for rod, offset in zip(self.rods, (-0.25, 0.25)):
+        for rod, offset_x, offset_y in zip(self.rods, (0.555, 0.565), (-0.25, 0.25)):
             xpos = rod.robot_model.base_xpos_offset["table"](self.table_full_size[0])
-            xpos = np.array(xpos) + np.array((0.5, offset, 0.13))
+            xpos = np.array(xpos) + np.array((offset_x, offset_y, 0.13))
             rod.robot_model.set_base_xpos(xpos)
 
         # load model for table top workspace
@@ -437,7 +437,6 @@ class TwoArmRod(RobotEnv):
         for robot in self.robots:
             robot.controller.has_initialized = True
 
-
     def _get_observation(self):
         """
         Returns an OrderedDict containing observations [(name_string, np.array), ...].
@@ -497,7 +496,7 @@ class TwoArmRod(RobotEnv):
         Returns:
             bool: True if peg is assembled
         """
-        return (np.sum(self._left_rod_top_xpos**2) + np.sum(self._right_rod_top_xpos**2) < 1e-4) and \
+        return (np.sum(self._left_peg_to_rod_top**2) + np.sum(self._right_peg_to_rod_top**2) < 1e-4) and \
             self._left_grab_error <= 1e-3 and \
             self._right_grab_error <= 1e-3
 
