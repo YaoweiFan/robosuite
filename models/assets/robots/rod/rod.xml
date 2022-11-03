@@ -32,7 +32,7 @@
                     <geom pos="0 0 0.005" type="box" size="0.02 0.01 0.005" contype="0" conaffinity="0" group="1" name="slot3_visual" material="smetal"/>
                     <geom pos="0 0 0.005" type="box" size="0.02 0.01 0.005" group="0" name="slot3_collision"/>
 
-                    <site name="rodtop" pos="0 0 0.01"  size="0.01 0.01 0.01" rgba="0 0 1 1" type="sphere" group="1"/>
+                    <site name="rodtop" pos="0 0 0.0225"  size="0.01 0.01 0.01" rgba="0 0 1 1" type="sphere" group="1"/>
                 </body>
             </body>
 
