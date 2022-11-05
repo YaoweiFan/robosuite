@@ -23,11 +23,11 @@
 
                 <!-- 槽 -->
                 <body name="slot" pos="0 0 0.2">
-                    <geom pos="-0.02 0 0.01" type="box" size="0.005 0.01 0.01" contype="0" conaffinity="0" group="1" name="slot1_visual" material="smetal"/>
-                    <geom pos="-0.02 0 0.01" type="box" size="0.005 0.01 0.01" group="0" name="slot1_collision"/>
+                    <geom pos="-0.02 0 0.0075" type="box" size="0.005 0.01 0.0075" contype="0" conaffinity="0" group="1" name="slot1_visual" material="smetal"/>
+                    <geom pos="-0.02 0 0.0075" type="box" size="0.005 0.01 0.0075" group="0" name="slot1_collision"/>
 
-                    <geom pos="0.02 0 0.01" type="box" size="0.005 0.01 0.01" contype="0" conaffinity="0" group="1" name="slot2_visual" material="smetal"/>
-                    <geom pos="0.02 0 0.01" type="box" size="0.005 0.01 0.01" group="0" name="slot2_collision"/>
+                    <geom pos="0.02 0 0.0075" type="box" size="0.005 0.01 0.0075" contype="0" conaffinity="0" group="1" name="slot2_visual" material="smetal"/>
+                    <geom pos="0.02 0 0.0075" type="box" size="0.005 0.01 0.0075" group="0" name="slot2_collision"/>
 
                     <geom pos="0 0 0.005" type="box" size="0.02 0.01 0.005" contype="0" conaffinity="0" group="1" name="slot3_visual" material="smetal"/>
                     <geom pos="0 0 0.005" type="box" size="0.02 0.01 0.005" group="0" name="slot3_collision"/>
