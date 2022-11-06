@@ -242,22 +242,22 @@ class TwoArmAssemble(RobotEnv):
         if self.reward_shaping:
             _contacts_0_lf = len(list(
                 self.find_contacts(
-                    self.robots[0].gripper.important_geoms["left_finger"], ["peg_top"]
+                    self.robots[0].gripper.important_geoms["left_finger"], ["peg-1"]
                 )
             )) > 0
             _contacts_0_rf = len(list(
                 self.find_contacts(
-                    self.robots[0].gripper.important_geoms["right_finger"], ["peg_top"]
+                    self.robots[0].gripper.important_geoms["right_finger"], ["peg-1"]
                 )
             )) > 0
             _contacts_1_lf = len(list(
                 self.find_contacts(
-                    self.robots[1].gripper.important_geoms["left_finger"], ["peg_top"]
+                    self.robots[1].gripper.important_geoms["left_finger"], ["peg-1"]
                 )
             )) > 0
             _contacts_1_rf = len(list(
                 self.find_contacts(
-                    self.robots[1].gripper.important_geoms["right_finger"], ["peg_top"]
+                    self.robots[1].gripper.important_geoms["right_finger"], ["peg-1"]
                 )
             )) > 0
 
