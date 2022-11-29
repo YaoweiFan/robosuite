@@ -358,6 +358,15 @@ class TwoArmAssemble(RobotEnv):
             table_friction=self.table_friction,
             table_offset=(0, 0, 1.0),
         )
+
+        # set two hole pos
+        center_x = np.random.uniform(high=0.01, low=-0.01)
+        center_y = np.random.uniform(high=0.01, low=-0.01)
+        center_z = 0.05
+        pos_arr = np.array([center_x, center_y, center_z])
+        rot_angle = np.random.uniform(high=np.pi/72, low=-np.pi/72)
+        self.mujoco_arena.set_hole_pos(pos_arr, rot_angle)
+
         if self.use_indicator_object:
             self.mujoco_arena.add_pos_indicator()
 

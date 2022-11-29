@@ -91,6 +91,18 @@ class TableWithHoleArena(Arena):
                 # Set leg size
                 leg.set("size", array_to_string([0.025, z]))
 
+    def set_hole_pos(self, cent_pos, angle):
+        self.hole1 = self.table_body.find("./body[@name='hole1']")
+        self.hole2 = self.table_body.find("./body[@name='hole2']")
+        hole1_pos = np.array([cent_pos[0] + 0.25*np.sin(angle),
+                              cent_pos[1] - 0.25*np.cos(angle),
+                              cent_pos[2]])
+        hole2_pos = np.array([cent_pos[0] - 0.25*np.sin(angle),
+                              cent_pos[1] + 0.25*np.cos(angle),
+                              cent_pos[2]])
+        self.hole1.set("pos", array_to_string(hole1_pos))
+        self.hole2.set("pos", array_to_string(hole2_pos))
+
     @property
     def table_top_abs(self):
         """
