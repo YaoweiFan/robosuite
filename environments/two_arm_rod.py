@@ -241,6 +241,40 @@ class TwoArmRod(RobotEnv):
         """
         reward = 0
 
+        # use a shaping reward
+        if self.reward_shaping:
+            _contacts_0_lf = len(list(
+                self.find_contacts(
+                    self.robots[0].gripper.important_geoms["left_finger"], ["stick"]
+                )
+            )) > 0
+            _contacts_0_rf = len(list(
+                self.find_contacts(
+                    self.robots[0].gripper.important_geoms["right_finger"], ["stick"]
+                )
+            )) > 0
+            _contacts_1_lf = len(list(
+                self.find_contacts(
+                    self.robots[1].gripper.important_geoms["left_finger"], ["stick"]
+                )
+            )) > 0
+            _contacts_1_rf = len(list(
+                self.find_contacts(
+                    self.robots[1].gripper.important_geoms["right_finger"], ["stick"]
+                )
+            )) > 0
+
+            # Reaching reward with Grasping
+            if _contacts_0_lf and _contacts_0_rf:
+                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._left_peg_to_rod_top)))
+
+            # Reaching reward with Grasping
+            if _contacts_1_lf and _contacts_1_rf:
+                reward += 1.5 * (1 - np.tanh(10.0 * np.linalg.norm(self._right_peg_to_rod_top)))
+
+            if self.reward_scale is not None:
+                reward *= self.reward_scale / 3.0
+
         return reward
 
     def _pre_action(self, action, policy_step=False):
