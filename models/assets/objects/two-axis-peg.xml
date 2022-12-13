@@ -1,4 +1,4 @@
-<mujoco model="assemble_peg">
+<mujoco model="peg">
   <asset>
     <texture file="../textures/red-wood.png" type="cube" name="red-wood" />
     <texture file="../textures/steel-scratched.png" type="cube" name="steel-metal"/>
