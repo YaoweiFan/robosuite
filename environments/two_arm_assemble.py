@@ -162,6 +162,7 @@ class TwoArmAssemble(RobotEnv):
         camera_widths=256,
         camera_depths=False,
         prepare_steps=3,
+        randness_scale=1,
     ):
         # First, verify that correct number of robots are being inputted
         self.env_configuration = env_configuration
@@ -179,6 +180,9 @@ class TwoArmAssemble(RobotEnv):
 
         # whether to use ground-truth object states
         self.use_object_obs = use_object_obs
+
+        # 控制随机尺度
+        self.randness_scale = randness_scale
 
         # object placement initializer
         if placement_initializer:
@@ -360,11 +364,11 @@ class TwoArmAssemble(RobotEnv):
         )
 
         # set two hole pos
-        center_x = np.random.uniform(high=0.01, low=-0.01)
-        center_y = np.random.uniform(high=0.01, low=-0.01)
+        center_x = np.random.uniform(high=0.01/self.randness_scale, low=-0.01/self.randness_scale)
+        center_y = np.random.uniform(high=0.01/self.randness_scale, low=-0.01/self.randness_scale)
         center_z = 0.05
         pos_arr = np.array([center_x, center_y, center_z])
-        rot_angle = np.random.uniform(high=np.pi/72, low=-np.pi/72)
+        rot_angle = np.random.uniform(high=np.pi/72.0/self.randness_scale, low=-np.pi/72.0/self.randness_scale)
         self.mujoco_arena.set_hole_pos(pos_arr, rot_angle)
 
         if self.use_indicator_object:
