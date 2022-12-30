@@ -44,6 +44,8 @@ class SingleRod(Robot):
         self.controller_config["policy_freq"] = 20
         self.controller_config["ndim"] = len(self.robot_joints)
 
+        self.controller_config["kp"] = 500
+
         self.controller = controller_factory(self.controller_config["type"], self.controller_config)
 
     def load_model(self):

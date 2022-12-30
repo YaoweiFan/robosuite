@@ -274,6 +274,12 @@ class TwoArmAssemble(RobotEnv):
 
         return reward
 
+    def _pre_action(self, action, policy_step=False):
+        super()._pre_action(action, policy_step)
+        if policy_step:
+            self.goal_left = self.robots[0].controller.goal_pos
+            self.goal_right = self.robots[1].controller.goal_pos
+
     def _post_action(self):
         """
         Run any necessary visualization after running the action
@@ -324,7 +330,9 @@ class TwoArmAssemble(RobotEnv):
             else:
                 timeout = True
 
-        return reward, self.done, {"success": success, "defeat": defeat, "timeout": timeout}
+        return reward, self.done, {"success": success, "defeat": defeat, "timeout": timeout, 
+                                   "goall_x": self.goal_left[0], "goall_y": self.goal_left[1], "goall_z": self.goal_left[2],
+                                   "goalr_x": self.goal_right[0], "goalr_y": self.goal_right[1], "goalr_z": self.goal_right[2]}
 
     def _load_model(self):
         """

@@ -313,17 +313,17 @@ class TwoArmRod(RobotEnv):
             self.robots[0].ee_force[0] > 200 or self.robots[0].ee_force[0] < -200 or \
             self.robots[0].ee_force[1] > 200 or self.robots[0].ee_force[1] < -200 or \
             self.robots[0].ee_force[2] > 800 or self.robots[0].ee_force[2] < -800 or \
-            self.robots[0].ee_torque[0] > 5 or self.robots[0].ee_torque[0] < -5 or \
-            self.robots[0].ee_torque[1] > 5 or self.robots[0].ee_torque[1] < -5 or \
-            self.robots[0].ee_torque[2] > 3 or self.robots[0].ee_torque[2] < -3
+            self.robots[0].ee_torque[0] > 50 or self.robots[0].ee_torque[0] < -50 or \
+            self.robots[0].ee_torque[1] > 50 or self.robots[0].ee_torque[1] < -50 or \
+            self.robots[0].ee_torque[2] > 30 or self.robots[0].ee_torque[2] < -30
 
         self.robot2_ft_out_of_range = \
             self.robots[1].ee_force[0] > 200 or self.robots[1].ee_force[0] < -200 or \
             self.robots[1].ee_force[1] > 200 or self.robots[1].ee_force[1] < -200 or \
             self.robots[1].ee_force[2] > 800 or self.robots[1].ee_force[2] < -800 or \
-            self.robots[1].ee_torque[0] > 5 or self.robots[1].ee_torque[0] < -5 or \
-            self.robots[1].ee_torque[1] > 5 or self.robots[1].ee_torque[1] < -5 or \
-            self.robots[1].ee_torque[2] > 3 or self.robots[1].ee_torque[2] < -3
+            self.robots[1].ee_torque[0] > 50 or self.robots[1].ee_torque[0] < -50 or \
+            self.robots[1].ee_torque[1] > 50 or self.robots[1].ee_torque[1] < -50 or \
+            self.robots[1].ee_torque[2] > 30 or self.robots[1].ee_torque[2] < -30
 
         # done 的几个原因：时间超出限制、目标物体脱离抓手、力传感器示数超出限制
         self.done = (self.timestep >= self.horizon or
@@ -393,7 +393,7 @@ class TwoArmRod(RobotEnv):
                     robot.robot_model.set_base_xpos(xpos)
 
         # 调整 rod 的 base pos
-        for rod, offset_x, offset_y in zip(self.rods, (0.555, 0.565), (-0.25, 0.25)):
+        for rod, offset_x, offset_y in zip(self.rods, (0.56, 0.60), (-0.25, 0.25)):
             xpos = rod.robot_model.base_xpos_offset["table"](self.table_full_size[0])
             xpos = np.array(xpos) + np.array((offset_x, offset_y, 0.13))
             rod.robot_model.set_base_xpos(xpos)
