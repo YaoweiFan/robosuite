@@ -530,9 +530,10 @@ class TwoArmRod(RobotEnv):
         Returns:
             bool: True if peg is assembled
         """
-        return (np.sum(self._left_peg_to_rod_top**2) + np.sum(self._right_peg_to_rod_top**2) < 1e-4) and \
-            self._left_grab_error <= 1e-3 and \
-            self._right_grab_error <= 1e-3
+        return np.sum(self._left_peg_to_rod_top**2) < 5e-5 and \
+            np.sum(self._right_peg_to_rod_top**2) < 5e-5 and \
+            self._left_grab_error <= 1e-4 and \
+            self._right_grab_error <= 1e-4
 
     def _check_robot_configuration(self, robots):
         """
