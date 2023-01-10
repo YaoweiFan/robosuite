@@ -327,14 +327,14 @@ class TwoArmRod(RobotEnv):
 
         # done 的几个原因：时间超出限制、目标物体脱离抓手、力传感器示数超出限制
         self.done = (self.timestep >= self.horizon or
-                     self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or
+                     self._left_grab_error > 1e-4 or self._right_grab_error > 1e-4 or
                      self.robot1_ft_out_of_range or self.robot2_ft_out_of_range) and (not self.ignore_done)
 
         if self.done:
             # 明确 done 的原因
             if self._check_success():
                 success = True
-            elif self._left_grab_error > 1e-3 or self._right_grab_error > 1e-3 or \
+            elif self._left_grab_error > 1e-4 or self._right_grab_error > 1e-4 or \
                     self.robot1_ft_out_of_range or self.robot2_ft_out_of_range:
                 defeat = True
             else:
